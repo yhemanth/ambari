@@ -15,38 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.ambari.server.state.alert;
 
+package org.apache.ambari.server.controller;
 
-/**
- * The {@link TargetType} enumeration is used to represent the built-in target
- * dispatch mechanisms that are supported internally. {@link AlertTarget}
- * instances may have other custom target types that are not listed here.
- */
-public enum TargetType {
-  /**
-   * Alerts will be distributed via email.
-   */
-  EMAIL,
+import org.apache.ambari.server.alerts.AlertPublisherWebSocket;
 
-  /**
-   * Alerts will be distributed via SNMP.
-   */
-  SNMP,
+public interface WebSocketCloseListener {
 
-  /**
-   * Alerts will be distributed to a logger.
-   */
-  LOG,
-
-  /**
-   * Alerts will be distributed to a custom script that understand the various
-   * parts of the alert passed via the command line.
-   */
-  ALERT_SCRIPT,
-
-  /**
-   * WebSocket based dispatcher
-   */
-  WEB_SOCKET
+  void socketClosed(AlertPublisherWebSocket socket);
 }

@@ -530,6 +530,9 @@ public class AmbariServer {
       root.addServlet(resources, "/resources/*");
       resources.setInitOrder(5);
 
+      LOG.warn("Attempting to initialize websocket resource");
+      root.addServlet(AlertPublisherWebSocketServlet.class, "/alerts");
+
       if (configs.csrfProtectionEnabled()) {
         sh.setInitParameter("com.sun.jersey.spi.container.ContainerRequestFilters",
             "org.apache.ambari.server.api.AmbariCsrfProtectionFilter");

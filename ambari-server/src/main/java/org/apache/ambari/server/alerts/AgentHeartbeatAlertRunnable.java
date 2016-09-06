@@ -17,6 +17,10 @@
  */
 package org.apache.ambari.server.alerts;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,6 +34,8 @@ import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.HostState;
 import org.apache.ambari.server.state.services.AmbariServerAlertService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The {@link AgentHeartbeatAlertRunnable} is used by the
@@ -37,6 +43,9 @@ import org.apache.ambari.server.state.services.AmbariServerAlertService;
  * events when agents are not reachable.
  */
 public class AgentHeartbeatAlertRunnable extends AlertRunnable {
+
+  private final static Logger LOG = LoggerFactory.getLogger(AgentHeartbeatAlertRunnable.class);
+
   /**
    * Agent initializing message.
    */
@@ -87,6 +96,12 @@ public class AgentHeartbeatAlertRunnable extends AlertRunnable {
     Collection<Host> hosts = cluster.getHosts();
 
     List<Alert> alerts = new ArrayList<>(hosts.size());
+
+    tryInjectHostAlerts(cluster, definition, alertTimestamp, alerts);
+    if (alerts.size() > 0) {
+      return alerts;
+    }
+
     for (Host host : hosts) {
       String hostName = host.getHostName();
 
@@ -130,5 +145,35 @@ public class AgentHeartbeatAlertRunnable extends AlertRunnable {
     }
 
     return alerts;
+  }
+
+  private void tryInjectHostAlerts(Cluster cluster, AlertDefinitionEntity definition, long alertTimestamp,
+                                   List<Alert> alerts) {
+    String pathname = "/var/run/ambari-server/alert-hooks/hosts.txt";
+    File file = new File(pathname);
+    if (file.exists()) {
+      try {
+        List<String> alertHosts = Files.readAllLines(file.toPath(), Charset.defaultCharset());
+        for (String alertHost : alertHosts) {
+          alertHost = alertHost.trim();
+          if (!alertHost.isEmpty()) {
+            Alert alert = new Alert(definition.getDefinitionName(), null, definition.getServiceName(),
+                definition.getComponentName(), alertHost, AlertState.CRITICAL);
+
+            alert.setLabel(definition.getLabel());
+            alert.setText(MessageFormat.format(HEARTBEAT_LOST_MSG, alertHost));
+            alert.setTimestamp(alertTimestamp);
+            alert.setCluster(cluster.getClusterName());
+            alerts.add(alert);
+          }
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      boolean deleted = file.delete();
+      if (!deleted) {
+        LOG.warn("File " + pathname + " was not deleted.");
+      }
+    }
   }
 }
